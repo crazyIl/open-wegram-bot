@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open Wegram Bot - 配置工具</title>
+    <!-- 通过CDN引入Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- 通过CDN引入DaisyUI -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@3.9.4/dist/full.css" rel="stylesheet">
+</head>
+<body class="transition-colors duration-300">
+    <div id="app" class="min-h-screen flex flex-col items-center justify-center p-4">
+        <!-- 语言选择器 -->
+        <div class="absolute top-4 left-4 z-50">
+            <div class="dropdown dropdown-end">
+                <div tabindex="0" role="button" class="btn btn-ghost btn-sm m-1">
+                    <iconify-icon icon="heroicons:language" width="20" height="20" class="w-5 h-5 mr-1"></iconify-icon>
+                    <span class="normal-case">{{ languages.find(lang => lang.code === currentLanguage)?.name || currentLanguage }}</span>
+                    <iconify-icon icon="heroicons:chevron-down" width="16" height="16" class="h-4 w-4 ml-1"></iconify-icon>
+                </div>
+                <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-40">
+                    <li v-for="lang in languages" :key="lang.code">
+                        <a @click="selectLanguage(lang.code)" :class="{'active': currentLanguage === lang.code}">
+                            {{ lang.name }}
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 主题切换按钮 -->
+        <div class="absolute top-4 right-4 cursor-pointer">
+            <button @click="toggleTheme" class="btn btn-circle btn-sm">
+                <iconify-icon v-if="theme === 'light'" icon="heroicons:moon" width="20" height="20" class="w-5 h-5"></iconify-icon>
+                <iconify-icon v-else icon="heroicons:sun" width="20" height="20" class="w-5 h-5"></iconify-icon>
+            </button>
+        </div>
+
+        <div class="w-full max-w-4xl dark:bg-gray-800 rounded-2xl shadow-xl p-6 space-y-6">
+            <!-- 标题 -->
+            <div class="text-center">
+                <h1 class="text-3xl font-bold text-primary">{{ t('title') }}</h1>
+                <p class="text-gray-500 dark:text-gray-400 mt-2">{{ t('subtitle') }}</p>
+            </div>
+
+            <!-- 表单 -->
+            <div class="form-control space-y-4">
+                <!-- Worker URL -->
+                <div class="relative">
+                    <label class="label">
+                        <span class="label-text font-medium">{{ t('workerUrl.label') }}</span>
+                        <span class="label-text-alt text-error">{{ errors.workerUrl }}</span>
+                    </label>
+                    <input 
+                        v-model="formData.workerUrl" 
+                        type="text" 
+                        :placeholder="t('workerUrl.placeholder')"
+                        class="input input-bordered w-full" 
+                        :class="{'input-error': errors.workerUrl}"
+                        @focus="showHistory = true"
+                        @blur="hideHistoryWithDelay"
+                        @click.stop
+                    />
+                    
+                    <!-- 历史记录下拉框 -->
+                    <div v-if="showHistory && urlHistory.length > 0" 
+                         class="absolute w-full max-h-[200px] overflow-y-auto z-50 left-0 mt-[1px] bg-base-100 border rounded-md shadow-md">
+                        <div v-for="(item, index) in urlHistory" 
+                             :key="index" 
+                             class="flex justify-between items-center p-3 hover:bg-black/5 dark:hover:bg-white/5">
+                            <div @click.stop="selectHistory(item)" class="cursor-pointer flex-1">
+                                <div class="font-medium">{{ item.workerUrl }}</div>
+                                <div class="text-xs text-gray-500 dark:text-gray-400">{{ item.prefix }}</div>
+                            </div>
+                            <button @click.stop="removeHistory(index)" class="btn btn-ghost btn-xs text-error">
+                                <iconify-icon icon="heroicons:x-mark" width="16" height="16" class="w-4 h-4"></iconify-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <label class="label">
+                        <span class="label-text-alt text-gray-500 dark:text-gray-400">{{ t('workerUrl.description') }}</span>
+                    </label>
+                </div>
+
+                <!-- PREFIX -->
+                <div>
+                    <label class="label">
+                        <span class="label-text font-medium">{{ t('prefix.label') }}</span>
+                        <span class="label-text-alt text-error">{{ errors.prefix }}</span>
+                    </label>
+                    <input v-model="formData.prefix" type="text" 
+                           :placeholder="t('prefix.placeholder')"
+                           class="input input-bordered w-full" 
+                           :class="{'input-error': errors.prefix}" 
+                           @click.stop />
+                    <label class="label">
+                        <span class="label-text-alt text-gray-500 dark:text-gray-400">{{ t('prefix.description') }}</span>
+                    </label>
+                </div>
+
+                <!-- 操作类型选择 -->
+                <div>
+                    <label class="label">
+                        <span class="label-text font-medium">{{ t('operation.label') }}</span>
+                    </label>
+                    <div class="flex">
+                        <div class="form-control">
+                            <label class="label cursor-pointer justify-start gap-2">
+                                <input v-model="formData.operation" type="radio" value="install" 
+                                       class="radio radio-primary" @click.stop />
+                                <span class="label-text">{{ t('operation.install') }}</span>
+                            </label>
+                        </div>
+                        <div class="form-control ml-8">
+                            <label class="label cursor-pointer justify-start gap-2">
+                                <input v-model="formData.operation" type="radio" value="uninstall" 
+                                       class="radio radio-primary" @click.stop />
+                                <span class="label-text">{{ t('operation.uninstall') }}</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Telegram UID -->
+                <div v-if="formData.operation === 'install'">
+                    <label class="label">
+                        <span class="label-text font-medium">{{ t('telegramUid.label') }}</span>
+                        <span class="label-text-alt text-error">{{ errors.telegramUid }}</span>
+                    </label>
+                    <input v-model="formData.telegramUid" type="text" 
+                           :placeholder="t('telegramUid.placeholder')"
+                           class="input input-bordered w-full" 
+                           :class="{'input-error': errors.telegramUid}" 
+                           @click.stop />
+                    <label class="label">
+                        <span class="label-text-alt text-gray-500 dark:text-gray-400">{{ t('telegramUid.description') }}</span>
+                    </label>
+                </div>
+
+                <!-- Bot API Token -->
+                <div>
+                    <label class="label">
+                        <span class="label-text font-medium">{{ t('botToken.label') }}</span>
+                        <span class="label-text-alt text-error">{{ errors.botToken }}</span>
+                    </label>
+                    <input v-model="formData.botToken" type="text" 
+                           :placeholder="t('botToken.placeholder')"
+                           class="input input-bordered w-full" 
+                           :class="{'input-error': errors.botToken}" 
+                           @click.stop />
+                    <label class="label">
+                        <span class="label-text-alt text-gray-500 dark:text-gray-400">{{ t('botToken.description') }}</span>
+                    </label>
+                </div>
+
+                <!-- 生成的 URL 展示 -->
+                <div v-if="generatedUrl" class="mt-4">
+                    <label class="label">
+                        <span class="label-text font-medium">{{ t('generatedUrl.label') }}</span>
+                    </label>
+                    <div class="bg-base-200 p-3 rounded-lg overflow-x-auto">
+                        <a :href="generatedUrl" target="_blank" class="cursor-pointer underline text-indigo-600 hover:no-underline">
+                            <code class="text-sm break-all">{{ generatedUrl }}</code>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 提交按钮 -->
+                <div class="pt-2">
+                    <button @click.stop="generateAndExecute" class="btn btn-primary w-full">
+                        <span class="normal-case">{{ submitButtonText }}</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 结果展示区域 -->
+            <transition 
+                enter-active-class="transition-opacity duration-500" 
+                leave-active-class="transition-opacity duration-500"
+                enter-from-class="opacity-0"
+                leave-to-class="opacity-0">
+                <div v-if="result" :class="['alert', resultClass, 'shadow-lg']">
+                    <div>
+                        <span v-if="resultType === 'success'" class="text-xl">✅</span>
+                        <span v-else-if="resultType === 'error'" class="text-xl">❌</span>
+                        <span v-else class="text-xl">ℹ️</span>
+                        <div>
+                            <h3 class="font-bold">{{ resultTitle }}</h3>
+                            <div class="text-sm">{{ result }}</div>
+                            <div v-if="resultType === 'error' && isCorsError" class="text-sm mt-2 font-medium">
+                                {{ t('result.corsError') }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </transition>
+        </div>
+
+        <!-- 页脚 -->
+        <div class="mt-8 text-center text-gray-500 dark:text-gray-400 text-sm">
+            <p>{{ t('footer.copyright') }} {{ new Date().getFullYear() }}</p>
+            <p class="mt-1">
+                <a href="https://github.com/wozulong/open-wegram-bot" target="_blank" 
+                   class="link link-hover text-primary">{{ t('footer.repository') }}</a>
+                |
+                <a href="https://t.me/wegram_bot" target="_blank" 
+                   class="link link-hover text-primary">@WegramBot</a>
+            </p>
+        </div>
+    </div>
+    <!-- 通过CDN引入Vue 3 -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.3.4/dist/vue.global.prod.js"></script>
+    <!-- 引入Iconify -->
+    <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js"></script>
+    <!-- 引入翻译文件 -->
+    <script type="module" src="i18n/translations.js"></script>
+    <!-- 引入应用脚本 -->
+    <script type="module" src="app.js"></script>
+</body>
+</html> 
