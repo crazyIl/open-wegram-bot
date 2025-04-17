@@ -112,21 +112,22 @@ export async function handleWebhook(request, ownerUid, botToken, secretToken) {
             return new Response('OK');
         }
 
-        const sender = message.chat;
+        const isGroup = message.chat.type === 'group' || message.chat.type === 'supergroup';
+        const sender = isGroup ? message.from : message.chat;
         const senderUid = sender.id.toString();
-        const senderName = sender.username ? `@${sender.username}` : [sender.first_name, sender.last_name].filter(Boolean).join(' ');
-        const isGroup = sender.type === 'group' || sender.type === 'supergroup';
-        const groupId = isGroup ? sender.id.toString() : null;
-        const groupName = isGroup ? sender.title : null;
+        const senderUsername = sender.username ? `@${sender.username}` : "无";
+        const senderFullName = [sender.first_name, sender.last_name].filter(Boolean).join(' ') || "无";
+        const groupId = isGroup ? message.chat.id.toString() : null;
+        const groupName = isGroup ? message.chat.title : null;
 
         const copyMessage = async function (withUrl = false) {
             const ik = [[{
-                text: `🔏 From: ${senderName} (${senderUid})`,
+                text: `🔏 ${isGroup ? '🟢' : '🔴'} From: ${senderUsername} | ${senderFullName} | ${senderUid}`,
                 callback_data: senderUid,
             }]];
 
             if (withUrl) {
-                ik[0][0].text = `🔓 From: ${senderName} (${senderUid})`
+                ik[0][0].text = `🔓 ${isGroup ? '🟢' : '🔴'} From: ${senderUsername} | ${senderFullName} | ${senderUid}`
                 ik[0][0].url = `tg://user?id=${senderUid}`;
             }
             if (isGroup) {
